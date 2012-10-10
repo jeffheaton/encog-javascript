@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+<h3>Current Stats</h3>
+<p id="pStats"></p>
+<h3>Create Network</h3>
+Input Layer Count: <input type="text" id="txtInputCount" value="2"/><br>
+Hidden Layer 1 Count: <input type="text" id="txtHidden1Count" value="3"/><br>
+Hidden Layer 2 Count: <input type="text" id="txtHidden2Count" value="0"/><br>
+Output Layer Count: <input type="text" id="txtOutputCount" value="1"/><br>
+<input type="submit" id="btnCreateNetwork" value="Create Network">
+<input type="submit" id="btnEvaluateNetwork" value="Evaluate Network">
+<input type="submit" id="btnTrainNetwork" value="Train Network">
+<h3>Input/Output</h3>
+<textarea id="textIO" rows="5" cols="40"></textarea><br>
+<input type="button" id="btnReadNetwork" value="Read Network"><br>
+<input type="button" id="btnWriteNetwork" value="Write Network"><br>
+<input type="button" id="btnReadTraining" value="Read Training"><br>
+Input Count: <input id="inputCount" value="2"><br>
+<h1>Output</h1>
+<div id="out"> </div>
+
+<script src="../encog.js"></script>
+<script src="../encog-widget.js"></script>
+
+<script type="text/javascript">
+    var textIO, pStats;
+    var btnCreateNetwork, btnReadNetwork, btnWriteNetwork,btnReadTraining, btnEvaluateNetwork, btnTrainNetwork;
+    var txtInputCount,txtHidden1Count,txtHidden2Count,txtOutputCount;
+    var network = null, inputData = null, idealData = null;
+
+    if(window.addEventListener) {
+        window.addEventListener('load', function () {
+
+        function init() {
+            var con = ENCOG.GUI.Console.create('out');
+
+            textIO = document.getElementById('textIO');
+
+            pStats = document.getElementById('pStats');
+            btnCreateNetwork = document.getElementById('btnCreateNetwork');
+            btnReadNetwork = document.getElementById('btnReadNetwork');
+            btnWriteNetwork = document.getElementById('btnWriteNetwork');
+            btnReadTraining = document.getElementById('btnReadTraining');
+            btnEvaluateNetwork = document.getElementById('btnEvaluateNetwork');
+            btnTrainNetwork = document.getElementById('btnTrainNetwork');
+
+            txtInputCount= document.getElementById('txtInputCount');
+            txtHidden1Count= document.getElementById('txtHidden1Count');
+            txtHidden2Count= document.getElementById('txtHidden2Count');
+            txtOutputCount= document.getElementById('txtOutputCount');
+
+            btnCreateNetwork.addEventListener('click', ev_createNetwork, false);
+            btnReadNetwork.addEventListener('click', ev_readNetwork, false);
+            btnWriteNetwork.addEventListener('click', ev_writeNetwork, false);
+            btnReadTraining.addEventListener('click', ev_readTraining, false);
+            btnEvaluateNetwork.addEventListener('click', ev_evaluateNetwork, false);
+            btnTrainNetwork.addEventListener('click', ev_trainNetwork, false);
+
+            //var csv = ENCOG.ReadCSV.create();
+            //csv.readCSV(csvText.value,2,1);
+
+            con.writeLine('One');
+            con.writeLine('Two');
+            con.writeLine('Three');
+
+            updateStats();
+        }
+
+        function ev_readNetwork(ev)
+        {
+            network = ENCOG.EGFILE.load(textIO.value);
+            updateStats();
+        }
+        function ev_writeNetwork(ev)
+        {
+            if( network==null ) {
+                textIO.value = 'No network defined';
+            } else {
+                textIO.value = ENCOG.EGFILE.save(network);
+            }
+        }
+        function ev_readTraining(ev)
+        {
+            var csv, inputCount;
+
+            inputCount = parseInt(txtInputCount.value);
+            csv = ENCOG.ReadCSV.create();
+            csv.readCSV(textIO.value,inputCount);
+            inputData = csv.inputData;
+            idealData = csv.idealData
+            updateStats();
+
+        }
+        function ev_evaluateNetwork(ev)
+        {
+            var e;
+
+            if( network==null || inputData==null ) {
+                alert('Must have network and training data to do that.');
+                return;
+            }
+            e = network.evaluate(inputData,idealData);
+            alert("Error: " + e);
+        }
+        function ev_trainNetwork(ev)
+        {
+
+        }
+
+        function updateStats()
+        {
+            var str = "";
+
+            str+='Network: ';
+            if( network == null ) {
+                str+= 'Undefined';
+            } else {
+                str+= 'Input Count: ' + network.inputCount + ', Output Count: ' + network.outputCount;
+            }
+            str+='<br>Training Data: ';
+
+            if( inputData==null ) {
+                str+= 'Undefined';
+            } else {
+                str+= 'Elements: ' + inputData.length
+                if( inputData.length>0 ) {
+                    str+= ', Input Count: ' + inputData[0].length + ', Ideal Count: ' + idealData[0].length;
+                }
+            }
+
+
+            pStats.innerHTML = str;
+        }
+
+        function ev_createNetwork(ev) {
+            var inputCount, outputCount, hidden1Count, hidden2Count, layers;
+
+            inputCount = parseInt(txtInputCount.value);
+            hidden1Count = parseInt(txtHidden1Count.value);
+            hidden2Count = parseInt(txtHidden2Count.value);
+            outputCount = parseInt(txtOutputCount.value);
+
+            if( hidden1Count==0 && hidden2Count==0 ) {
+                layers =
+                        [
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),inputCount,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),outputCount,0)];
+            } else if( hidden1Count>0 && hidden2Count==0 ) {
+                layers =
+                        [
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),inputCount,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),hidden1Count,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),outputCount,0)];
+            } else if( hidden1Count==0 && hidden2Count>0 ) {
+                layers =
+                        [
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),inputCount,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),hidden2Count,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),outputCount,0)];
+            } else if( hidden1Count>0 && hidden2Count>=0 ) {
+                layers =
+                        [
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),inputCount,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),hidden1Count,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),hidden1Count,1),
+                            ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),outputCount,0)];
+            }
+
+
+            network = ENCOG.BasicNetwork.create( layers );
+            network.randomize();
+
+            updateStats();
+        }
+
+        init();
+    }, false); }
+</script>
+
+            </body>
+</html>

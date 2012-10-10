@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+
+<style type="text/css"><!--
+#example-holder
+{
+    border: 1px solid #000;
+    padding:5px;
+    background: #c0c0c0;
+    width: 500px;
+    height: 640px;
+    position: relative;
+}
+
+.colorOption
+{
+    border: 1px solid #000;
+    width: 16px;
+    height: 16px;
+    position: relative;
+    display: inline-block;
+}
+
+#divGrid
+{
+    border: 1px solid #000;
+    background: white;
+    width:500px;
+    height:500px;
+    position: absolute;
+    display: inline;
+}
+
+
+#example-btn1
+{
+    border: 1px solid #000;
+    padding: 2px;
+    position: absolute;
+    display: inline;
+    width: 495px;
+    top:510px;
+}
+
+.test { color: red }
+--></style><div id="example-holder">
+    <div id="divGrid"></div><div id="example-btn1">
+    <input id="btnStart" type="button" value="Start" /><input id="btnStop" type="button" value="Stop" /><input id="btnSingle" type="button" value="Single" /><input id="btnClear" type="button" value="Clear" /><br />Network Type:<select id="selType"><option>2:3</option><option>2:1:3</option><option>2:5:3</option><option>2:10:3</option><option>2:15:3</option><option selected="selected">2:20:3</option><option>2:25:3</option><option>2:50:3</option><option>2:100:3</option><option>2:5:5:3</option><option>2:10:5:3</option><option>2:10:10:3</option><option>2:20:20:3</option><option>2:50:50:3</option></select><input id="btnRetrain" type="button" value="Retrain" /><br />Patterns:<input id="btnRandom2Color" type="button" value="Random 2-Color" /><input id="btnRandomManyColor" type="button" value="Random Many-Color" /><input id="btnDualSpiral" type="button" value="Dual Spiral" /><div id="c1" class="colorOption" style="background:green;"></div><div id="c2" class="colorOption" style="background:yellow;"></div><div id="c3" class="colorOption" style="background:blue;"></div><div id="c4" class="colorOption" style="background:red;"></div><div id="c5" class="colorOption" style="background:white;"></div><p id="pOutput"> </p>
+</div>
+
+</div>
+<script src="../encog.js"></script>
+<script src="../encog-widget.js"></script>
+<script type="text/javascript">
+<!--//--><![CDATA[// ><!--
+
+"use strict";
+if(window.addEventListener) {
+    window.addEventListener('load', function () {
+
+        var currentColor = [1,0,0];
+        var backgroundTimer;
+        var btnStart, btnStop, btnClear, btnSingle, btnRetrain;
+        var btnRandom2Color,btnRandomManyColor,btnDualSpiral;
+        var pOutput;
+        var iteration;
+        var selType;
+
+
+        var GRID_WIDTH = 100;
+        var GRID_HEIGHT = 100;
+        var pixW, pixH;
+        var running = false;
+        var grid;
+
+        var network,trainingInput,trainingIdeal,train;
+
+        function init () {
+
+            grid = ENCOG.GUI.CellGrid.create('divGrid', GRID_WIDTH, GRID_HEIGHT, 500, 500);
+            grid.pointerMode = ENCOG.GUI.CellGrid.MODE_PCT;
+
+            // Attach the mousedown, mousemove and mouseup event listeners.
+            btnStart = document.getElementById('btnStart');
+            btnStop = document.getElementById('btnStop');
+            btnClear = document.getElementById('btnClear');
+            btnSingle = document.getElementById('btnSingle');
+            btnRetrain = document.getElementById('btnRetrain');
+            btnRandom2Color = document.getElementById('btnRandom2Color');
+            btnRandomManyColor = document.getElementById('btnRandomManyColor');
+            btnDualSpiral = document.getElementById('btnDualSpiral');
+            pOutput = document.getElementById('pOutput');
+            selType = document.getElementById('selType');
+
+            btnStart.addEventListener('click', ev_start, false);
+            btnStop.addEventListener('click', ev_stop, false);
+            btnClear.addEventListener('click', ev_clear, false);
+            btnSingle.addEventListener('click', ev_single, false);
+            btnRetrain.addEventListener('click', ev_retrain, false);
+            btnRandom2Color.addEventListener('click', ev_random2Color, false);
+            btnRandomManyColor.addEventListener('click', ev_randomManyColor, false);
+            btnDualSpiral.addEventListener('click', ev_dualSpiral, false);
+
+            var c1 = document.getElementById('c1');
+            var c2 = document.getElementById('c2');
+            var c3 = document.getElementById('c3');
+            var c4 = document.getElementById('c4');
+            var c5 = document.getElementById('c5');
+            c1.clr = [0,1,0];
+            c2.clr = [1,1,0];
+            c3.clr = [0,0,1];
+            c4.clr = [1,0,0];
+            c5.clr = [1,1,1];
+
+            c1.addEventListener('click', ev_color, true);
+            c2.addEventListener('click', ev_color, true);
+            c3.addEventListener('click', ev_color, true);
+            c4.addEventListener('click', ev_color, true);
+            c5.addEventListener('click', ev_color, true);
+
+            trainingInput = [];
+            trainingIdeal = [];
+
+            grid.pointerDown = function(row,col) {
+                trainingInput.push([col,row]);
+                trainingIdeal.push(currentColor);
+                plotPoints();
+            };
+
+            grid.determineColor = function(row,col) {
+                var input, rowAdjust, colAdjust, output, r, g, b;
+                output = {};
+                rowAdjust = 1.0 / grid.gridHeight;
+                colAdjust = 1.0 / grid.gridWidth;
+
+                input = [ col * colAdjust, row * rowAdjust ];
+                network.compute(input, output);
+
+                r = Math.floor(output[0] * 255);
+                g = Math.floor(output[1] * 255);
+                b = Math.floor(output[2] * 255);
+
+                return "rgb(" + r + "," + g + "," + b + ")";
+            };
+
+            ev_retrain(null);
+            ev_clear(null);
+
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Event functions
+        /////////////////////////////////////////////////////////////////////////////
+
+        function ev_color(ev)
+        {
+            'use strict';
+            currentColor = ev.target.clr;
+        }
+
+        function ev_random2Color(ev)
+        {
+            'use strict';
+            var i;
+            ev_clear(null);
+            for(i=0;i<25;i++)
+            {
+                trainingInput.push([ Math.random(), Math.random()]);
+                trainingIdeal.push([ 1,0,0]);
+            }
+            for(i=0;i<25;i++)
+            {
+                trainingInput.push([ Math.random(), Math.random()]);
+                trainingIdeal.push([ 0,0,1]);
+            }
+            grid.clear();
+            plotPoints();
+        }
+
+        function ev_randomManyColor(ev)
+        {
+            'use strict';
+            ev_clear(null);
+            for(var i=0;i<50;i++)
+            {
+                trainingInput.push([ Math.random(), Math.random()]);
+                trainingIdeal.push([ Math.random(), Math.random(), Math.random()]);
+            }
+            grid.clear();
+            plotPoints();
+        }
+
+        function ev_dualSpiral(ev)
+        {
+            'use strict';
+            ev_clear(null);
+            var angInc = Math.PI/40;
+            var sz = 0.05;
+            for(var i=0;i<(4*Math.PI);i+=angInc)
+            {
+                var x = (Math.sin(i)*sz)+0.5;
+                var y = (Math.cos(i)*sz)+0.5;
+                trainingInput.push([ x,y ]);
+                trainingIdeal.push([ 1,0,0]);
+
+                x = (Math.sin(i)*(sz+0.08))+0.5;
+                y = (Math.cos(i)*(sz+0.08))+0.5;
+                trainingInput.push([ x,y ]);
+                trainingIdeal.push([ 0,0,1]);
+
+                sz+=0.002;
+            }
+            grid.clear();
+            plotPoints();
+        }
+
+        function ev_retrain(ev)
+        {
+            'use strict';
+            ev_stop(null);
+
+            // parse the network type
+            var str = selType.value;
+            var a = str.split(':');
+            var layers = [];
+
+            for(var i=0;i<a.length;i++)
+            {
+                layers[i] = ENCOG.BasicLayer.create(ENCOG.ActivationSigmoid.create(),parseInt(a[i]),1);
+            }
+
+            network = ENCOG.BasicNetwork.create( layers );
+
+            // setup for training
+            iteration = 0;
+            network.randomize();
+            train = ENCOG.PropagationTrainer.create(network,trainingInput,trainingIdeal,"RPROP",0.1,0.3);
+            grid.clear();
+            plotPoints();
+            pOutput.innerHTML = "Ready";
+        }
+
+        function ev_start(ev)
+        {
+            'use strict';
+            if( !running )
+            {
+                if( trainingInput.length<2 )
+                {
+                    alert("Please add at least 2 dots of different colors.");
+                    return;
+                }
+                backgroundTimer = self.setInterval(ev_animate,100);
+                btnStart.disabled = true;
+                btnStop.disabled = false;
+                btnSingle.disabled = true;
+                running = true;
+            }
+        }
+
+        function ev_stop(ev)
+        {
+            'use strict';
+            if( running )
+            {
+                self.clearInterval(backgroundTimer);
+                btnStart.disabled = false;
+                btnStop.disabled = true;
+                btnSingle.disabled = false;
+                running = false;
+            }
+        }
+
+        function ev_clear(ev)
+        {
+            'use strict';
+            ev_stop(null);
+            trainingInput.length = 0;
+            trainingIdeal.length = 0;
+            ev_retrain(null);
+            grid.clear();
+        }
+
+        function ev_single(ev)
+        {
+            'use strict';
+            ev_animate();
+        }
+
+        function plotPoints()
+        {
+            'use strict';
+            var x, y, r, g, b, c;
+
+            for(var i=0;i<trainingInput.length;i++)
+            {
+                x = trainingInput[i][0] * grid.canvas.width;
+                y = trainingInput[i][1] * grid.canvas.height;
+                r = Math.floor(trainingIdeal[i][0] * 255);
+                g = Math.floor(trainingIdeal[i][1] * 255);
+                b = Math.floor(trainingIdeal[i][2] * 255);
+                c = "rgb(" + r + "," + g + "," + b + ")";
+                grid.drawingContext.fillStyle = c;
+                grid.drawingContext.fillRect(x,y,5,5);
+                grid.drawingContext.strokeRect(x,y,5,5);
+            }
+        }
+
+        function ev_animate()
+        {
+            'use strict';
+            var i;
+
+            grid.render();
+
+            plotPoints();
+
+            iteration+=10;
+            pOutput.innerHTML = "Iteration: " + iteration + ", Error: " + train.error;
+
+            for(i=0;i<10;i++) {
+                train.iteration();
+            }
+
+        }
+
+        // cause the init function to be called.
+        init();
+
+    }, false); }
+
+//--><!]]>
+</script>
+
+</body>
+</html>

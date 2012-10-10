@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+<script src="../testlib.js"></script>
+<script type="text/javascript">
+
+
+
+    var vec1 = TESTLIB.Vector.create([1,2,3]);
+    var vec2 = TESTLIB.Vector.create([3,4,5]);
+    document.write( "vec1.length = " + vec1.length() + "<br>" );
+    document.write( "vec2.length = " + vec2.length() + "<br>" );
+    document.write( "vec1.count = " + vec1.count() + "<br>" );
+    document.write( "vec1 + vec2 = " + TESTLIB.VectorUtil.add(vec1,vec2) + "<br>" );
+
+    document.write( " length between vec1 and vec2 = " + TESTLIB.VectorUtil.distance(vec1,vec2) + "<br>" );
+
+
+
+</script>
+
+
+</body>
+</html>

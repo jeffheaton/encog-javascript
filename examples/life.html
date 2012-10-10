@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+
+<script src="../encog.js"></script>
+<script src="../encog-widget.js"></script>
+
+
+<style type="text/css"><!--
+#example-holder
+{
+    border: 1px solid #000;
+    padding:5px;
+    background: #c0c0c0;
+    width: 500px;
+    height: 530px;
+    position: relative;
+}
+
+#drawing-area
+{
+    border: 1px solid #000;
+    background: white;
+    width:500px;
+    height:500px;
+    position: absolute;
+    display: inline;
+}
+
+
+#example-btn1
+{
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 500px;
+    top:510px;
+}
+
+.test { color: red }
+--></style><div id="example-holder">
+    <div id="drawing-area"></div><div id="example-btn1">
+    <input id="btnStart" type="button" value="Start" /><input id="btnStop" type="button" value="Stop" /><input id="btnSingle" type="button" value="Single" /><input id="btnClear" type="button" value="Clear" /></div>
+</div>
+<p>	bottom</p>
+
+<script type="text/javascript">
+<!--//--><![CDATA[// ><!--
+
+if(window.addEventListener) {
+    window.addEventListener('load', function () {
+        var drawing, drawingPen;
+        var universe, backgroundTimer;
+        var btnStart, btnStop, btnClear, btnSingle;
+        var grid1,grid2,sourceGrid,targetGrid;
+        var GRID_WIDTH = 50;
+        var GRID_HEIGHT = 50;
+        var pixW, pixH;
+
+        var TRANS_X = new Array( 0, 1, 1, 1,    0, -1, -1, -1);
+        var TRANS_Y = new Array(-1,-1, 0, 1,    1,  1,  0, -1);
+
+        function init () {
+            'use strict';
+
+            // Find the canvas element.
+            universe = ENCOG.GUI.CellGrid.create('drawing-area',GRID_HEIGHT,GRID_WIDTH,500,500);
+            universe.outline = true;
+            universe.pointerMode = ENCOG.GUI.CellGrid.MODE_CELL;
+            universe.determineColor = function(row,col) {
+                if( targetGrid[row][col] ) {
+                    return "black";
+                }
+                else {
+                    return "white";
+                }
+            };
+
+            universe.pointerDown = function(row,col)
+            {
+                drawing = true;
+                drawingPen = !targetGrid[row][col];
+                sourceGrid[row][col] = drawingPen;
+                targetGrid[row][col] = drawingPen;
+                universe.render();
+            }
+            universe.pointerUp = function(row,col)
+            {
+                drawing = false;
+            };
+            universe.pointerMove = function(row,col)
+            {
+                if( drawing ) {
+                    sourceGrid[row][col] = drawingPen;
+                    targetGrid[row][col] = drawingPen;
+                    universe.render();
+                }
+            };
+
+            // Attach the mousedown, mousemove and mouseup event listeners.
+            btnStart = document.getElementById('btnStart');
+            btnStop = document.getElementById('btnStop');
+            btnClear = document.getElementById('btnClear');
+            btnSingle = document.getElementById('btnSingle');
+
+            btnStart.addEventListener('click', ev_start, false);
+            btnStop.addEventListener('click', ev_stop, false);
+            btnClear.addEventListener('click', ev_clear, false);
+            btnSingle.addEventListener('click', ev_single, false);
+
+            grid1 = ENCOG.ArrayUtil.allocateBoolean2D(GRID_HEIGHT,GRID_WIDTH);
+            grid2 = ENCOG.ArrayUtil.allocateBoolean2D(GRID_HEIGHT,GRID_WIDTH);
+
+            targetGrid = grid1;
+            sourceGrid = grid2;
+
+            ev_clear();
+            ev_start();
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Event functions
+        /////////////////////////////////////////////////////////////////////////////
+
+        function ev_start(ev)
+        {
+            'use strict';
+            backgroundTimer = self.setInterval(ev_animate,100);
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            btnSingle.disabled = true;
+        }
+
+        function ev_stop(ev)
+        {
+            'use strict';
+            self.clearInterval(backgroundTimer);
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            btnSingle.disabled = false;
+        }
+
+        function ev_clear(ev)
+        {
+            'use strict';
+            for(var row = 0; row<sourceGrid.length; row++)
+            {
+                for(var col = 0; col<sourceGrid[row].length; col++)
+                {
+                    if( Math.random()>0.5 )
+                        targetGrid[row][col] = sourceGrid[row][col] = true;
+                    else
+                        targetGrid[row][col] = sourceGrid[row][col] = false;
+                }
+            }
+        }
+
+        function ev_single(ev)
+        {
+            'use strict';
+            ev_animate();
+        }
+
+        function ev_animate()
+        {
+            'use strict';
+
+            universe.render();
+
+            for(var row = 0; row<targetGrid.length; row++)
+            {
+                var above = targetGrid[row-1];
+                var below = targetGrid[row+1];
+
+                for(var col = 0; col<targetGrid[row].length; col++)
+                {
+                    var total = 0;
+
+                    for(var i=0;i<TRANS_X.length;i++)
+                    {
+                        var x = col + TRANS_X[i];
+                        var y = row + TRANS_Y[i];
+                        if( isValid(x,y) )
+                        {
+                            if( sourceGrid[y][x] )
+                            {
+                                total++;
+                            }
+                        }
+                    }
+
+                    var alive = sourceGrid[row][col];
+
+                    if( alive )
+                    {
+                        // 1. Any live cell with fewer than two live neighbors dies, as if caused by under-population.
+                        if( total <2 )
+                        {
+                            alive = false;
+                        }
+                        // 2. Any live cell with two or three live neighbors lives on to the next generation. (not needed)
+                        // 3. Any live cell with more than three live neighbors dies, as if by overcrowding.
+                        else if( total>3 )
+                        {
+                            alive = false;
+                        }
+                    }
+                    else
+                    {
+                        // 4. Any dead cell with exactly three live neighbors becomes a live cell, as if by reproduction.
+                        if( total==3 )
+                        {
+                            alive = true;
+                        }
+                    }
+
+                    targetGrid[row][col] = alive;
+                }
+            }
+
+            // swap
+            var temp = sourceGrid;
+            sourceGrid = targetGrid;
+            targetGrid = temp;
+        }
+
+        function isValid(x,y)
+        {
+            'use strict';
+            if( x<0 || y<0 )
+                return false;
+
+            if( x>=GRID_WIDTH || y>=GRID_HEIGHT )
+                return false;
+
+            return true;
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Downsampling functions
+        /////////////////////////////////////////////////////////////////////////////
+
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Drawing functions
+        /////////////////////////////////////////////////////////////////////////////
+
+        // cause the init function to be called.
+        init();
+
+    }, false); }
+
+
+//--><!]]>
+</script>
+</body>

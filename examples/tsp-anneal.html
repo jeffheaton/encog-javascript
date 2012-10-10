@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+<style type="text/css"><!--
+#example-holder {
+    border: 1px solid #000;
+    padding: 5px;
+    background: #c0c0c0;
+    width: 650px;
+    height: 445px;
+    position: relative;
+}
+
+#drawing-area {
+    border: 1px solid #000;
+    background: white;
+    width: 650px;
+    height: 300px;
+    position: absolute;
+    display: inline;
+}
+
+#example-btn1 {
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 650px;
+    top: 310px;
+}
+
+#example-btn2 {
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 650px;
+    top: 340px;
+}
+
+#example-btn3 {
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 650px;
+    top: 397px;
+}
+
+.test {
+    color: red
+}
+
+--></style>
+<div id="example-holder">
+    <div id="universe-area"></div>
+    <div id="example-btn1"><input id="btnStart" type="button" value="Start"/><input id="btnStop" type="button"
+                                                                                    value="Stop"/><input id="btnSingle"
+                                                                                                         type="button"
+                                                                                                         value="Single"/><input
+            id="btnRandomCities" type="button" value="Random Cities"/><input id="btnCircleCities" type="button"
+                                                                             value="Circle Cities"/><input
+            id="btnRandomPath" type="button" value="Random Path"/></div>
+    <div id="example-btn2">Cities: <input id="txtCities" type="text" size="2" value="50"/>, Stop after <input
+            id="txtStable" type="text" size="2" value="50"/> stable iterations.<br/>Start Temp: <input id="txtStartTemp"
+                                                                                                       type="text"
+                                                                                                       size="2"
+                                                                                                       value="20"/>, End
+        Temp: <input id="txtEndTemp" type="text" size="2" value="2"/>, Cycles: <input id="txtCycles" type="text"
+                                                                                      size="2" value="10"/><input
+                id="btnSet" type="button" value="Set"/></div>
+    <div id="example-btn3">
+        <p id="paraStatus">Ready.</p>
+    </div>
+</div>
+
+<script src="../encog.js"></script>
+<script src="../encog-widget.js"></script>
+
+<script type="text/javascript">
+<!--//--><![CDATA[// ><!--
+
+"use strict";
+if (window.addEventListener) {
+    window.addEventListener('load', function () {
+        var MARGIN = 10;
+
+        var backgroundTimer;
+        var btnStart, btnStop, btnSet, btnSingle, paraStatus, btnRandomCities, btnCircleCities, btnRandomPath;
+        var txtCities, txtStable, txtStartTemp, txtEndTemp, txtCycles;
+        var universe;
+        var anneal;
+        var iteration;
+        var constCities = 50;
+        var constStable = 50;
+        var lastBest;
+        var stableFor;
+        var constStartTemp = 10.0;
+        var constStopTemp = 2.0;
+        var constCycles = 10;
+
+        function init() {
+
+            // Find the canvas element.
+            universe = ENCOG.GUI.TSP.create('universe-area', 650, 300);
+
+            // Attach the mousedown, mousemove and mouseup event listeners.
+            btnStart = document.getElementById('btnStart');
+            btnStop = document.getElementById('btnStop');
+            btnSet = document.getElementById('btnSet');
+            btnSingle = document.getElementById('btnSingle');
+            btnRandomCities = document.getElementById('btnRandomCities');
+            btnCircleCities = document.getElementById('btnCircleCities');
+            btnRandomPath = document.getElementById('btnRandomPath');
+
+            paraStatus = document.getElementById('paraStatus');
+
+            btnStart.addEventListener('click', ev_start, false);
+            btnStop.addEventListener('click', ev_stop, false);
+            btnSet.addEventListener('click', ev_set, false);
+            btnSingle.addEventListener('click', ev_single, false);
+            btnRandomCities.addEventListener('click', ev_randomCities, false);
+            btnCircleCities.addEventListener('click', ev_circleCities, false);
+            btnRandomPath.addEventListener('click', ev_startOver, false);
+
+            txtCities = document.getElementById('txtCities');
+            txtStable = document.getElementById('txtStable');
+            txtStartTemp = document.getElementById('txtStartTemp');
+            txtEndTemp = document.getElementById('txtEndTemp');
+            txtCycles = document.getElementById('txtCycles');
+
+            ev_set();
+            universe.render();
+
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Event functions
+        /////////////////////////////////////////////////////////////////////////////
+
+
+        function ev_start(ev) {
+            backgroundTimer = self.setInterval(ev_animate, 100);
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            btnSingle.disabled = true;
+            btnRandomCities.disabled = true;
+            btnCircleCities.disabled = true;
+            btnRandomPath.disabled = true;
+            btnSet.disabled = true;
+        }
+
+        function ev_stop(ev) {
+            self.clearInterval(backgroundTimer);
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            btnSingle.disabled = false;
+            btnRandomCities.disabled = false;
+            btnCircleCities.disabled = false;
+            btnRandomPath.disabled = false;
+            btnSet.disabled = false;
+        }
+
+        function ev_startOver(ev) {
+            iteration = 1;
+            universe.bestPath = universe.generatePath();
+            lastBest = universe.calculatePathLength(universe.bestPath);
+            stableFor = 0;
+
+            anneal = ENCOG.Anneal.create(universe.bestPath);
+            anneal.constStartTemp = parseFloat(txtStartTemp.value);
+            anneal.constStopTemp = parseFloat(txtEndTemp.value);
+            anneal.constCycles = parseInt(txtCycles.value);
+
+            anneal.scoreSolution = function(path) {
+                return universe.calculatePathLength(path);
+            }
+
+            anneal.randomize = function(path, temperature) {
+                var length = path.length - 1;
+
+                // make adjustments to city order(annealing)
+                for (var i = 0; i < temperature; i++) {
+                    var index1 = Math.floor(length * Math.random());
+                    var index2 = Math.floor(length * Math.random());
+                    var d = universe.pathDistance(path, index1, index1 + 1)
+                            + universe.pathDistance(path, index2, index2 + 1)
+                            - universe.pathDistance(path, index1, index2)
+                            - universe.pathDistance(path, index1 + 1, index2 + 1);
+                    if (d > 0) {
+                        // sort index1 and index2 if needed
+                        if (index2 < index1) {
+                            var temp = index1;
+                            index1 = index2;
+                            index2 = temp;
+                        }
+                        for (; index2 > index1; index2--) {
+                            var temp = path[index1 + 1];
+                            path[index1 + 1] = path[index2];
+                            path[index2] = temp;
+                            index1++;
+                        }
+                    }
+                }
+
+            }
+
+            universe.render();
+        }
+
+        function ev_circleCities() {
+            universe.resetCircle(constCities);
+            ev_startOver(ev);
+        }
+
+        function ev_set(ev) {
+            // collect parameters
+
+            constCities = parseInt(txtCities.value);
+            constStartTemp = parseFloat(txtStartTemp.value);
+            constStopTemp = parseFloat(txtEndTemp.value);
+            constCycles = parseInt(txtCycles.value);
+            constStable = parseInt(txtStable.value);
+            ev_randomCities();
+            ev_startOver();
+            universe.render();
+        }
+
+        function ev_single(ev) {
+            ev_animate();
+        }
+        function ev_randomCities() {
+            universe.reset(constCities);
+            ev_startOver(ev);
+        }
+
+
+        function ev_animate() {
+            anneal.iteration();
+            universe.currentPath = anneal.solution;
+            universe.render();
+            iteration++;
+
+            var l = Math.floor(universe.calculatePathLength(universe.currentPath));
+            paraStatus.innerHTML = "Iteration "+iteration+": Path length = " + l;
+
+            if (l == lastBest) {
+                stableFor++;
+                if (stableFor > constStable) {
+                    paraStatus.innerHTML = "Stable solution found after " + iteration + " iterations: Path length = " + l;
+                    ev_stop();
+                }
+            }
+            else {
+                lastBest = l;
+                stableFor = 0;
+            }
+
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Drawing functions
+        /////////////////////////////////////////////////////////////////////////////
+
+        // cause the init function to be called.
+        init();
+
+    }, false);
+}
+
+//--><!]]>
+</script>
+</body>
+</html>

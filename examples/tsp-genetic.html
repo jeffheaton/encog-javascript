@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+<style type="text/css"><!--
+#example-holder
+{
+    border: 1px solid #000;
+    padding:5px;
+    background: #c0c0c0;
+    width: 650px;
+    height: 445px;
+    position: relative;
+}
+
+#drawing-area
+{
+    border: 1px solid #000;
+    background: white;
+    width:650px;
+    height:300px;
+    position: absolute;
+    display: inline;
+}
+
+
+#example-btn1
+{
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 650px;
+    top:310px;
+}
+
+#example-btn2
+{
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 650px;
+    top:340px;
+}
+
+#example-btn3
+{
+    border: 1px solid #000;
+    position: absolute;
+    display: inline;
+    width: 650px;
+    top:397px;
+}
+
+.test { color: red }
+--></style><div id="example-holder">
+    <div id="universe-area"></div><div id="example-btn1"><input id="btnStart" type="button" value="Start" /><input id="btnStop" type="button" value="Stop" /><input id="btnSingle" type="button" value="Single" /><input id="btnRandomCities" type="button" value="Random Cities" /><input id="btnCircleCities" type="button" value="Circle Cities" /><input id="btnRandomPath" type="button" value="New Population" /></div>
+    <div id="example-btn2">Cities: <input id="txtCities" type="text" size="2" value="50" />, Stop after <input id="txtStable" type="text" size="2" value="50" /> stable iterations.<br />Population: <input id="txtPopulation" type="text" size="2" value="1000" />, Mutation %: <input id="txtMutationPercent" type="text" size="2" value="0.2" />, % to Mate: <input id="txtMatePercent" type="text" size="2" value="0.2" />, Eligible Pop %: <input id="txtMatingPopulationPercent" type="text" size="2" value="0.5" /><input id="btnSet" type="button" value="Set" /></div>
+    <div id="example-btn3">
+        <p id="paraStatus">Ready.</p>
+    </div>
+</div>
+
+<script src="../encog.js"></script>
+<script src="../encog-widget.js"></script>
+
+<script type="text/javascript">
+<!--//--><![CDATA[// ><!--
+
+"use strict";
+if(window.addEventListener) {
+    window.addEventListener('load', function () {
+        var MARGIN = 10;
+
+        var universe, genetic, backgroundTimer;
+        var btnStart, btnStop, btnSet, btnSingle, paraStatus, btnRandomCities, btnCircleCities, btnRandomPath;
+        var txtCities, txtStable,txtPopulation,txtMutationPercent, txtMatePercent, txtMutationPercent;
+
+        var cities = [];
+        var iteration;
+        var constCities = 50;
+        var constStable = 50;
+        var constPopulationSize = 1000;
+        var lastBest;
+        var stableFor;
+
+        var population = [];
+
+        var constMutationPercent = 0.1;
+        var constMatePercent = 0.24;
+        var constMatingPopulationPercent = 0.5;
+
+        function init () {
+
+            // Find the canvas element.
+            universe = ENCOG.GUI.TSP.create('universe-area', 650, 300);
+
+            paraStatus = document.getElementById('paraStatus');
+
+            btnStart = document.getElementById('btnStart');
+            btnStop = document.getElementById('btnStop');
+            btnSet = document.getElementById('btnSet');
+            btnSingle = document.getElementById('btnSingle');
+            btnRandomCities = document.getElementById('btnRandomCities');
+            btnCircleCities = document.getElementById('btnCircleCities');
+            btnRandomPath = document.getElementById('btnRandomPath');
+
+            btnStart.addEventListener('click', ev_start, false);
+            btnStop.addEventListener('click', ev_stop, false);
+            btnSet.addEventListener('click', ev_set, false);
+            btnSingle.addEventListener('click', ev_single, false);
+            btnRandomCities.addEventListener('click', ev_randomCities, false);
+            btnCircleCities.addEventListener('click', ev_circleCities, false);
+            btnRandomPath.addEventListener('click', ev_startOver, false);
+
+            txtPopulation = document.getElementById('txtPopulation');
+            txtMutationPercent = document.getElementById('txtMutationPercent');
+            txtMatePercent = document.getElementById('txtMatePercent');
+
+            txtCities = document.getElementById('txtCities');
+            txtStable = document.getElementById('txtStable');
+
+            ev_set();
+            universe.render();
+
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Event functions
+        /////////////////////////////////////////////////////////////////////////////
+
+
+        function ev_start(ev)
+        {
+            backgroundTimer = self.setInterval(ev_animate,100);
+            btnStart.disabled = true;
+            btnStop.disabled = false;
+            btnSingle.disabled = true;
+            btnRandomCities.disabled = true;
+            btnCircleCities.disabled = true;
+            btnRandomPath.disabled = true;
+            btnSet.disabled = true;
+        }
+
+        function ev_stop(ev)
+        {
+            self.clearInterval(backgroundTimer);
+            btnStart.disabled = false;
+            btnStop.disabled = true;
+            btnSingle.disabled = false;
+            btnRandomCities.disabled = false;
+            btnCircleCities.disabled = false;
+            btnRandomPath.disabled = false;
+            btnSet.disabled = false;
+        }
+
+        function ev_randomCities(ev)
+        {
+            universe.reset(constCities);
+            ev_startOver(ev);
+        }
+
+        function ev_circleCities(ev)
+        {
+            universe.resetCircle(constCities);
+            ev_startOver(ev);
+        }
+
+        function ev_startOver(ev)
+        {
+            iteration = 1;
+
+            genetic = ENCOG.Genetic.create();
+
+            genetic.crossover = function performCrossover(motherArray, fatherArray, child1Array, child2Array)
+            {
+                // the chromosome must be cut at two positions, determine them
+                var cutLength = motherArray.length / 5;
+                var cutpoint1 = Math.floor(Math.random() * (motherArray.length - cutLength));
+                var cutpoint2 = cutpoint1 + cutLength;
+
+                // keep track of which genes have been taken in each of the two
+                // offspring, defaults to false.
+                var taken1 = {};
+                var taken2 = {};
+
+                // handle cut section
+                for (var i = 0; i < motherArray.length; i++)
+                {
+                    if (!((i < cutpoint1) || (i > cutpoint2)))
+                    {
+                        child1Array[i] = fatherArray[i];
+                        child2Array[i] = motherArray[i];
+                        taken1[fatherArray[i]] = true;
+                        taken2[motherArray[i]] = true;
+                    }
+                }
+
+                // handle outer sections
+                for (var i = 0; i < motherArray.length; i++)
+                {
+                    if ((i < cutpoint1) || (i > cutpoint2))
+                    {
+                        child1Array[i] = getNotTaken(motherArray,taken1);
+                        child2Array[i] = getNotTaken(fatherArray,taken2);
+                    }
+                }
+            };
+
+            genetic.mutate = function performMutation(data)
+            {
+                var iswap1 = Math.floor(Math.random() * data.length);
+                var iswap2 = Math.floor(Math.random() * data.length);
+
+                // can't be equal
+                if (iswap1 == iswap2)
+                {
+                    // move to the next, but
+                    // don't go out of bounds
+                    if (iswap1 > 0)
+                    {
+                        iswap1--;
+                    } else {
+                        iswap1++;
+                    }
+                }
+
+                var t = data[iswap1];
+                data[iswap1] = data[iswap2];
+                data[iswap2] = t;
+            }
+
+            genetic.scoreSolution = function(path) {
+                return universe.calculatePathLength(path);
+            };
+
+            genetic.createPopulation(constPopulationSize, function()
+            {
+                return universe.generatePath();
+            });
+            universe.render();
+        };
+
+        function ev_set(ev)
+        {
+            // collect parameters
+            constCities = parseInt(txtCities.value);
+            constStable = parseInt(txtStable.value);
+
+            constPopulationSize = parseInt(txtPopulation.value);
+            constMutationPercent = parseFloat(txtMutationPercent.value);
+            constMatePercent = parseFloat(txtMatePercent.value);
+
+            ev_randomCities();
+            ev_startOver();
+        }
+
+        function ev_single(ev)
+        {
+            ev_animate();
+        }
+
+        function getNotTaken(source, taken)
+        {
+            for(var i=0;i<constCities;i++)
+            {
+                var trial = source[i];
+
+                if( taken[trial] != true )
+                {
+                    taken[trial] = true;
+                    return trial;
+                }
+            }
+
+            return -1;
+        }
+
+
+        function ev_animate()
+        {
+            genetic.iteration();
+            universe.currentPath = genetic.getSolution();
+            universe.render();
+            iteration++;
+
+            var l = Math.floor(universe.calculatePathLength(universe.currentPath));
+            paraStatus.innerHTML = "Iteration "+iteration+": Path length = " + l;
+
+            if (l == lastBest) {
+                stableFor++;
+                if (stableFor > constStable) {
+                    paraStatus.innerHTML = "Stable solution found after " + iteration + " iterations: Path length = " + l;
+                    ev_stop();
+                }
+            }
+            else {
+                lastBest = l;
+                stableFor = 0;
+            }
+        }
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Downsampling functions
+        /////////////////////////////////////////////////////////////////////////////
+
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Drawing functions
+        /////////////////////////////////////////////////////////////////////////////
+
+        // cause the init function to be called.
+        init();
+
+    }, false); }
+
+//--><!]]>
+</script>
+</body>
+</html>
