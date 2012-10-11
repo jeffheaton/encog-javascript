@@ -7,7 +7,6 @@
 Hello World
 <div id="out"> </div>
 <h3>Network JSON</h3>
-<textarea rows="10" cols="80" id="networkJSON"></textarea>
 <script src="../encog.js"></script>
 <script src="../encog-widget.js"></script>
 <script type="text/javascript">
@@ -49,8 +48,6 @@ Hello World
         iteration++;
     } while( iteration<1000 && train.error>0.01);
 
-    train.iteration();
-
     var input = [0,0];
     var output = new Array(1);
 
@@ -65,9 +62,6 @@ Hello World
         con.writeLine(str);
     }
 
-    var jsonOutput = document.getElementById('networkJSON');
-
-    jsonOutput.value = ENCOG.EGFILE.save(network);
 </script>
 
 

@@ -284,8 +284,9 @@ ENCOG.ArrayUtil.newFloatArray = function (sz) {
     'use strict';
     var result;
     result = [];
-    while ((sz -= 1) > 0) {
+    while (sz > 0) {
         result.push(0.0);
+        sz-=1;
     }
     return result;
 };
@@ -1497,9 +1498,9 @@ ENCOG.BasicNetwork.create = function (layers) {
     result.beginTraining = 0;
     result.endTraining = result.layerCounts.length - 1;
 
-    result.weights = [];
-    result.layerOutput = [];
-    result.layerSums = [];
+    result.weights = ENCOG.ArrayUtil.allocate1D(weightCount);
+    result.layerOutput = ENCOG.ArrayUtil.allocate1D(neuronCount);
+    result.layerSums = ENCOG.ArrayUtil.allocate1D(neuronCount);
 
     result.clearContext();
     return result;

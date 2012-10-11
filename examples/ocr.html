@@ -192,19 +192,20 @@ if(window.addEventListener) {
         function ev_selectList (ev)
         {
             var c = lstLetters.options[lstLetters.selectedIndex].text;
-            displaySample(charData[c]);
+            downSampleData = charData[c];
+            displaySample();
         }
 
         // Called when the "Recognize" button is clicked
         function ev_recognize (ev)
         {
-            var drawnChar = drawingArea.performDownSample();
-            displaySample(drawnChar);
+            downSampleData = drawingArea.performDownSample();
+            displaySample();
             if( lstLetters.length<1 )
             {
                 alert("Please teach me something first.");
             }
-            else if( drawnChar == null )
+            else if( downSampleData == null )
             {
                 alert("You must draw something to recognize.");
             }
@@ -224,7 +225,7 @@ if(window.addEventListener) {
                     var sum = 0;
                     for(var i = 0; i<data.length; i++ )
                     {
-                        var delta = data[i] - drawnChar[i];
+                        var delta = data[i] - downSampleData[i];
                         sum = sum + (delta*delta);
                     }
 
