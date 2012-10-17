@@ -1431,78 +1431,81 @@ ENCOG.BasicNetwork.create = function (layers) {
     var layerCount, result, index, neuronCount, weightCount, i, j, layer, nextLayer, neuronIndex;
 
     result = new ENCOG.BasicNetwork();
-    layerCount = layers.length;
 
-    result.inputCount = layers[0].count;
-    result.outputCount = layers[layerCount - 1].count;
+    if( layers!=null ) {
+        layerCount = layers.length;
 
-    result.layerCounts = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.layerContextCount = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.weightIndex = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.layerIndex = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.activationFunctions = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.layerFeedCounts = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.contextTargetOffset = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.contextTargetSize = ENCOG.ArrayUtil.allocate1D(layerCount);
-    result.biasActivation = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.inputCount = layers[0].count;
+        result.outputCount = layers[layerCount - 1].count;
 
-    index = 0;
-    neuronCount = 0;
-    weightCount = 0;
+        result.layerCounts = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.layerContextCount = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.weightIndex = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.layerIndex = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.activationFunctions = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.layerFeedCounts = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.contextTargetOffset = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.contextTargetSize = ENCOG.ArrayUtil.allocate1D(layerCount);
+        result.biasActivation = ENCOG.ArrayUtil.allocate1D(layerCount);
 
-    for (i = layers.length - 1; i >= 0; i -= 1) {
-        layer = layers[i];
-        nextLayer = null;
+        index = 0;
+        neuronCount = 0;
+        weightCount = 0;
 
-        if (i > 0) {
-            nextLayer = layers[i - 1];
-        }
+        for (i = layers.length - 1; i >= 0; i -= 1) {
+            layer = layers[i];
+            nextLayer = null;
 
-        result.biasActivation[index] = layer.biasActivation;
-        result.layerCounts[index] = layer.calcTotalCount();
-        result.layerFeedCounts[index] = layer.count;
-        result.layerContextCount[index] = layer.calcContextCount();
-        result.activationFunctions[index] = layer.activation;
-
-        neuronCount += layer.calcTotalCount();
-
-        if (nextLayer !== null) {
-            weightCount += layer.count * nextLayer.calcTotalCount();
-        }
-
-        if (index === 0) {
-            result.weightIndex[index] = 0;
-            result.layerIndex[index] = 0;
-        } else {
-            result.weightIndex[index] = result.weightIndex[index - 1]
-                + (result.layerCounts[index] * result.layerFeedCounts[index - 1]);
-            result.layerIndex[index] = result.layerIndex[index - 1]
-                + result.layerCounts[index - 1];
-        }
-
-        neuronIndex = 0;
-        for (j = layers.length - 1; j >= 0; j -= 1) {
-            if (layers[j].contextFedBy === layer) {
-                result.hasContext = true;
-                result.contextTargetSize[index] = layers[j].calcContextCount();
-                result.contextTargetOffset[index] = neuronIndex
-                    + (layers[j].calcTotalCount() - layers[j]
-                    .calcContextCount());
+            if (i > 0) {
+                nextLayer = layers[i - 1];
             }
-            neuronIndex += layers[j].calcTotalCount();
+
+            result.biasActivation[index] = layer.biasActivation;
+            result.layerCounts[index] = layer.calcTotalCount();
+            result.layerFeedCounts[index] = layer.count;
+            result.layerContextCount[index] = layer.calcContextCount();
+            result.activationFunctions[index] = layer.activation;
+
+            neuronCount += layer.calcTotalCount();
+
+            if (nextLayer !== null) {
+                weightCount += layer.count * nextLayer.calcTotalCount();
+            }
+
+            if (index === 0) {
+                result.weightIndex[index] = 0;
+                result.layerIndex[index] = 0;
+            } else {
+                result.weightIndex[index] = result.weightIndex[index - 1]
+                    + (result.layerCounts[index] * result.layerFeedCounts[index - 1]);
+                result.layerIndex[index] = result.layerIndex[index - 1]
+                    + result.layerCounts[index - 1];
+            }
+
+            neuronIndex = 0;
+            for (j = layers.length - 1; j >= 0; j -= 1) {
+                if (layers[j].contextFedBy === layer) {
+                    result.hasContext = true;
+                    result.contextTargetSize[index] = layers[j].calcContextCount();
+                    result.contextTargetOffset[index] = neuronIndex
+                        + (layers[j].calcTotalCount() - layers[j]
+                        .calcContextCount());
+                }
+                neuronIndex += layers[j].calcTotalCount();
+            }
+
+            index += 1;
         }
 
-        index += 1;
+        result.beginTraining = 0;
+        result.endTraining = result.layerCounts.length - 1;
+
+        result.weights = ENCOG.ArrayUtil.allocate1D(weightCount);
+        result.layerOutput = ENCOG.ArrayUtil.allocate1D(neuronCount);
+        result.layerSums = ENCOG.ArrayUtil.allocate1D(neuronCount);
+
+        result.clearContext();
     }
-
-    result.beginTraining = 0;
-    result.endTraining = result.layerCounts.length - 1;
-
-    result.weights = ENCOG.ArrayUtil.allocate1D(weightCount);
-    result.layerOutput = ENCOG.ArrayUtil.allocate1D(neuronCount);
-    result.layerSums = ENCOG.ArrayUtil.allocate1D(neuronCount);
-
-    result.clearContext();
     return result;
 };
 

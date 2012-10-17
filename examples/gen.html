@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Encog Generated Javascript</title>
+</head>
+<body>
+<script src="../encog.js"></script>
+<script src="../encog-widget.js"></script>
+<pre>
+<script type="text/javascript">
+    var EVAL_INPUT = [
+        [0,0],
+        [1,0],
+        [0,1],
+        [1,1]
+    ];
+
+    var EVAL_IDEAL = [
+        [0],
+        [1],
+        [1],
+        [0]
+    ];
+
+    function createNetwork() {
+        var network = ENCOG.BasicNetwork.create( null );
+        network.inputCount = 2;
+        network.outputCount = 1;
+        network.layerCounts = [1,4,3];
+        network.layerContextCount = [0,0,0]
+        network.weightIndex = [0,4,13];
+        network.layerIndex = [0,1,5];
+        network.activationFunctions = [ENCOG.ActivationSigmoid.create(),ENCOG.ActivationSigmoid.create(),ENCOG.ActivationSigmoid.create()];
+        network.layerFeedCounts = [1,3,2];
+        network.contextTargetOffset = [0,0,0];
+        network.contextTargetSize = [0,0,0];
+        network.biasActivation = [0,1,1];
+        network.beginTraining = 0;
+        network.endTraining=2;
+        network.weights = [4.829708306280296,4.820956496427187,-1.7069056277868824,-0.7867079482859217,-42.51872534049096,25.117884259186702,-3.489681793974507,8.414069583924698,-17.93433739871049,-3.538848421007223,-9.764827273392921,17.172933251238955,6.100314288446828];
+        network.layerOutput = [0.07630799440106945,8.459821328358263e-10,0.000002130575629054817,0.9999986405381375,1,1,1,1];
+        network.layerSums = [-2.493600980101433,-20.890522875278766,-13.059116235793015,13.508420266292863,0,0,0,0];
+        return network;
+    }
+
+    var network = createNetwork();
+
+    document.writeln("Testing neural network");
+    var output = ENCOG.ArrayUtil.allocate1D(network.outputCount);
+    for(var i=0;i<EVAL_INPUT.length;i++)
+    {
+        network.compute(EVAL_INPUT[i],output);
+        var str = "Input: " + EVAL_INPUT[i] + "; Output: " + output + "; Ideal: " + EVAL_IDEAL[i];
+        document.writeln(str);
+    }
+</script>
+</pre>
+</body>
+</html>

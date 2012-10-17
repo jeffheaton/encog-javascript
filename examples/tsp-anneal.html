@@ -210,7 +210,7 @@ if (window.addEventListener) {
 
         function ev_circleCities() {
             universe.resetCircle(constCities);
-            ev_startOver(ev);
+            ev_startOver(null);
         }
 
         function ev_set(ev) {
@@ -222,7 +222,7 @@ if (window.addEventListener) {
             constCycles = parseInt(txtCycles.value);
             constStable = parseInt(txtStable.value);
             ev_randomCities();
-            ev_startOver();
+            ev_startOver(null);
             universe.render();
         }
 
@@ -231,7 +231,7 @@ if (window.addEventListener) {
         }
         function ev_randomCities() {
             universe.reset(constCities);
-            ev_startOver(ev);
+            ev_startOver(null);
         }
 
 
