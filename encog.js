@@ -33,7 +33,7 @@ var ENCOG = ENCOG || {
      * @type String
      * @final
      */
-    VERSION : '0.1',
+    VERSION : '1.0',
 
     /**
      * The Encog platform being used.
